@@ -1,0 +1,32 @@
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Validate Docker Compose') {
+            steps {
+                dir('Exercise-6-Docker-Compose') {
+                    sh 'docker compose config --quiet'
+                }
+            }
+        }
+
+        stage('Build Delivery Metrics Image') {
+            steps {
+                dir('Exercise-6-Docker-Compose') {
+                    sh 'docker compose build delivery-metrics'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Delivery monitoring pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check the console output.'
+        }
+    }
+}
