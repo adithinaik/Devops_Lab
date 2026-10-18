@@ -1,0 +1,84 @@
+
+pipeline {
+    agent any
+
+    environment {
+        APP_DIR = 'Exercise-9-Jenkins-MultiStage-Pipeline/python-flask-app'
+        VENV = '.venv'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Installing Python dependencies...'
+                dir("${APP_DIR}") {
+                    sh '''
+                        python3 -m venv "${WORKSPACE}/${APP_DIR}/${VENV}"
+                        "${WORKSPACE}/${APP_DIR}/${VENV}/bin/python" -m pip install --upgrade pip
+                        "${WORKSPACE}/${APP_DIR}/${VENV}/bin/python" -m pip install -r requirements.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running unit tests...'
+                dir("${APP_DIR}") {
+                    sh '''
+                        "${WORKSPACE}/${APP_DIR}/${VENV}/bin/python" -m unittest test_app.py
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Flask application...'
+                sh '''
+                    mkdir -p "${WORKSPACE}/python-app-deploy"
+                    cp "${WORKSPACE}/${APP_DIR}/app.py" "${WORKSPACE}/python-app-deploy/"
+                '''
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                echo 'Starting Flask application...'
+                sh '''
+                    nohup "${WORKSPACE}/${APP_DIR}/${VENV}/bin/python" \
+                      "${WORKSPACE}/python-app-deploy/app.py" \
+                      > "${WORKSPACE}/python-app-deploy/app.log" 2>&1 &
+                    echo $! > "${WORKSPACE}/python-app-deploy/app.pid"
+                '''
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                echo 'Testing the deployed application...'
+                sh '''
+                    sleep 3
+                    "${WORKSPACE}/${APP_DIR}/${VENV}/bin/python" -c \
+                    "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/').read().decode())"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                if [ -f "${WORKSPACE}/python-app-deploy/app.pid" ]; then
+                    kill "$(cat "${WORKSPACE}/python-app-deploy/app.pid")" 2>/dev/null || true
+                fi
+            '''
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check the logs for more details.'
+        }
+    }
+}
