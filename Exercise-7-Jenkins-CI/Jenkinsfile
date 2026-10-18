@@ -1,0 +1,40 @@
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Starting Jenkins CI pipeline'
+                echo 'Source code is available in the workspace'
+            }
+        }
+
+        stage('Verify Python') {
+            steps {
+                bat 'python --version'
+            }
+        }
+
+        stage('Run Automated Tests') {
+            steps {
+                bat 'python -m unittest -v test_app.py'
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                bat 'python app.py'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI pipeline completed successfully!'
+        }
+        failure {
+            echo 'CI pipeline failed. Check the console output.'
+        }
+    }
+}
